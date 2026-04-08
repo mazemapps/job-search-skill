@@ -1,0 +1,66 @@
+{
+  "full_name": "Alex Example",
+  "target_role_family": "Senior iOS Engineer",
+  "email": "alex@example.com",
+  "phone": "+351 111 222 333",
+  "location": "Lisbon, Portugal",
+  "linkedin_url": "https://www.linkedin.com/in/alex-example/",
+  "portfolio_url": "https://alex.example.com",
+  "pdf_resume_basename": "Alex_Example_Resume.pdf",
+  "pdf_cover_letter_basename": "Alex_Example_Cover_Letter.pdf",
+  "default_language": "English",
+  "professional_summary": "Senior iOS engineer focused on maintainable mobile architectures, product delivery, and cross-functional execution across consumer and B2B applications.",
+  "core_skills": [
+    "Swift",
+    "UIKit",
+    "SwiftUI",
+    "Combine",
+    "Concurrency",
+    "CI/CD",
+    "Architecture",
+    "Mentoring"
+  ],
+  "languages": [
+    "English — C1",
+    "Portuguese — A2"
+  ],
+  "education": [
+    "B.Sc. in Computer Science — Example University"
+  ],
+  "experiences": [
+    {
+      "company": "Orbit Labs",
+      "role": "Senior iOS Engineer",
+      "location": "Remote",
+      "dates": "2023-2026",
+      "tech_stack": [
+        "Swift",
+        "SwiftUI",
+        "Combine",
+        "Fastlane"
+      ],
+      "bullets": [
+        "Delivered reusable mobile architecture patterns for a subscription product used across multiple feature teams.",
+        "Improved release confidence by standardizing CI pipelines, pull request review checklists, and regression practices.",
+        "Partnered with product and design to translate roadmap goals into scoped iOS delivery plans."
+      ]
+    },
+    {
+      "company": "Northwind Health",
+      "role": "iOS Engineer",
+      "location": "Hybrid",
+      "dates": "2020-2023",
+      "tech_stack": [
+        "Swift",
+        "UIKit",
+        "REST",
+        "MVVM"
+      ],
+      "bullets": [
+        "Built patient-facing onboarding and account flows for a regulated mobile product.",
+        "Reduced maintenance overhead by consolidating legacy screens into a modular UIKit codebase.",
+        "Worked closely with backend and QA teammates to stabilize release readiness."
+      ]
+    }
+  ]
+}

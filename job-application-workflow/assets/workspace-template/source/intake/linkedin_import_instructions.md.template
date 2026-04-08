@@ -1,0 +1,24 @@
+# LinkedIn Import Instructions
+
+## Saved LinkedIn Reference
+
+- URL: {{LINKEDIN_REFERENCE_LINE}}
+
+## How To Use It In This Workspace
+
+This workflow does not scrape LinkedIn automatically. The URL is saved as a reference and you should choose the cleanest manual follow-up path.
+
+## Recommended Next Step
+
+- {{LINKEDIN_NEXT_STEP}}
+
+## Good Follow-Up Options
+
+1. Export your LinkedIn profile to PDF and place it in `source/originals/`.
+2. Paste the most useful profile text into this file or into `resume_intake.md`.
+3. Keep refining `source/working/master_resume_clean_source.md` with only source-backed facts.
+
+## Guardrails
+
+- Do not invent dates, titles, achievements, or metrics.
+- Treat LinkedIn as a reference source, not as something the tool can silently parse for you.

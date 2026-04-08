@@ -1,0 +1,61 @@
+# Resume Intake
+
+Generated at: {{GENERATED_AT}}
+
+## Source Mode
+
+{{SOURCE_MODE_BULLETS}}
+
+## Candidate Profile
+
+- Full name: {{FULL_NAME}}
+- Target role family: {{TARGET_ROLE_FAMILY}}
+- Default language: {{DEFAULT_LANGUAGE}}
+- Location: {{LOCATION}}
+- Email: {{EMAIL}}
+- Phone: {{PHONE}}
+- LinkedIn: {{LINKEDIN_URL}}
+- Portfolio: {{PORTFOLIO_URL}}
+
+## Imported Sources
+
+{{IMPORTED_SOURCES_BULLETS}}
+
+## LinkedIn Reference
+
+- {{LINKEDIN_REFERENCE_LINE}}
+- Recommended next step: {{LINKEDIN_NEXT_STEP}}
+
+## Manually Entered Facts
+
+{{MANUAL_FACTS_BULLETS}}
+
+## Structured Intake Notes
+
+### Professional Summary
+
+{{SUMMARY}}
+
+### Core Skills
+
+{{CORE_SKILLS_BULLETS}}
+
+### Experience Evidence
+
+{{EXPERIENCE_BLOCKS_CLEAN}}
+
+### Education
+
+{{EDUCATION_BULLETS}}
+
+### Languages
+
+{{LANGUAGE_BULLETS}}
+
+## Follow-Up Checklist
+
+- Review imported source files and reconcile missing evidence.
+- If you added a LinkedIn URL, use `source/intake/linkedin_import_instructions.md` when it exists.
+- Keep `source/originals/` immutable.
+- Refine `source/working/master_resume_clean_source.md` when new facts are verified.
+- Keep `source/working/master_resume_2p.md` submission-ready.

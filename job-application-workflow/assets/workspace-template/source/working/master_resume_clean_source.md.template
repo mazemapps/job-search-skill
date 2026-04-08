@@ -1,0 +1,32 @@
+# {{FULL_NAME}}
+
+## Contact
+{{CONTACT_BULLETS}}
+
+## Target Role Family
+- {{TARGET_ROLE_FAMILY}}
+
+## Professional Summary
+
+{{SUMMARY}}
+
+## Core Skills
+{{CORE_SKILLS_BULLETS}}
+
+## Experience
+{{EXPERIENCE_BLOCKS_CLEAN}}
+
+## Education
+{{EDUCATION_BULLETS}}
+
+## Languages
+{{LANGUAGE_BULLETS}}
+
+## Source Inventory
+{{IMPORTED_SOURCES_BULLETS}}
+
+## LinkedIn Reference
+- {{LINKEDIN_REFERENCE_LINE}}
+
+## Manually Entered Facts
+{{MANUAL_FACTS_BULLETS}}

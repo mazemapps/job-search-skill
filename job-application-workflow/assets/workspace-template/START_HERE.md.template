@@ -1,0 +1,42 @@
+# Start Here
+
+This workspace was created by `job-application-workflow` and is ready for your baseline resume and future applications.
+
+## What Was Created
+
+- Workspace root: `{{WORKSPACE_PATH}}`
+- Candidate config: `{{WORKSPACE_PATH}}/config/candidate.yaml`
+- Clean source resume: `{{MASTER_RESUME_CLEAN_PATH}}`
+- Submission-ready baseline resume: `{{MASTER_RESUME_SUBMISSION_PATH}}`
+- Tracking file: `{{TRACKING_PATH}}`
+- Applications folder: `{{APPLICATIONS_PATH}}`
+
+## First Three Steps
+
+1. Open `source/working/master_resume_clean_source.md` and quickly verify chronology, bullets, and contact details.
+2. Open `source/working/master_resume_2p.md` and tighten the baseline until it feels submission-ready.
+3. Export a PDF with:
+   `{{RESUME_EXPORT_COMMAND}}`
+
+## If You Imported Sources
+
+- Imported files were copied into `source/originals/`.
+- Keep those files immutable and use them as evidence when refining the master resume.
+
+## If You Added LinkedIn
+
+- Check `source/intake/linkedin_import_instructions.md` when it exists.
+- Use it to decide whether to add a PDF/export, paste profile text, or keep working manually.
+
+## Starting The Application Workflow
+
+- Capture a vacancy with:
+  `{{CAPTURE_VACANCY_COMMAND}}`
+- Rebuild PDFs later with:
+  `{{REBUILD_PDFS_COMMAND}}`
+
+## Notes
+
+- The baseline is meant to be easy to refine, not perfect on day one.
+- Keep all claims source-backed.
+- Update `tracking/applications.csv` after every application event.

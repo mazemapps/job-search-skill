@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  smoke:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies on Ubuntu
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pandoc poppler-utils cargo
+          cargo install tectonic --locked || true
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+
+      - name: Install dependencies on macOS
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          brew update
+          brew install pandoc tectonic poppler
+
+      - name: Install dependencies on Windows
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          choco install pandoc tectonic poppler -y
+
+      - name: Run workspace smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          WORKSPACE_DIR="$RUNNER_TEMP/job-search-workspace"
+          CAPTURE_DATE="2099-01-01"
+          APPLICATION_ID="${CAPTURE_DATE}_example_co_senior_ios_engineer"
+          python job-application-workflow/scripts/bootstrap.py setup \
+            --workspace "$WORKSPACE_DIR" \
+            --candidate-file job-application-workflow/assets/samples/sample_candidate_profile.json \
+            --import job-application-workflow/assets/samples/sample_resume_import.md
+
+          test -f "$WORKSPACE_DIR/config/candidate.yaml"
+          test -f "$WORKSPACE_DIR/source/working/master_resume_2p.md"
+          test -f "$WORKSPACE_DIR/source/intake/resume_intake.md"
+          test -f "$WORKSPACE_DIR/START_HERE.md"
+          test -f "$WORKSPACE_DIR/source/intake/linkedin_import_instructions.md"
+
+          python "$WORKSPACE_DIR/scripts/export_resume_pdf.py" "$WORKSPACE_DIR"
+          test -f "$WORKSPACE_DIR/source/working/Alex_Example_Resume.pdf"
+
+          python job-application-workflow/scripts/bootstrap.py capture-vacancy \
+            --workspace "$WORKSPACE_DIR" \
+            --date "$CAPTURE_DATE" \
+            --company "Example Co" \
+            --role "Senior iOS Engineer" \
+            --link "https://example.com/jobs/senior-ios-engineer" \
+            --jd-text "Build and maintain a Swift-based mobile product."
+
+          python job-application-workflow/scripts/bootstrap.py track-event \
+            --workspace "$WORKSPACE_DIR" \
+            --application-id "$APPLICATION_ID" \
+            --status APPLIED \
+            --last-action "application submitted" \
+            --next-action "follow up" \
+            --next-due "2099-01-01" \
+            --log-note "Smoke test updated tracking."
+
+          grep -q "Example Co" "$WORKSPACE_DIR/tracking/applications.csv"

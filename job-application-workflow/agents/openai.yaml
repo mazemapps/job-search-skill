@@ -1,0 +1,4 @@
+interface:
+  display_name: "Job Application Workflow"
+  short_description: "Bootstrap a public job-search workspace and run vacancy workflow"
+  default_prompt: "Set up or run the job-application workflow, including workspace bootstrap, candidate resume baseline, vacancy scaffolding, PDF export, and tracking updates."
