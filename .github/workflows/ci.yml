@@ -47,12 +47,21 @@ jobs:
         run: |
           set -euo pipefail
           WORKSPACE_DIR="$RUNNER_TEMP/job-search-workspace"
+          FALLBACK_WORKSPACE_DIR="$RUNNER_TEMP/job-search-workspace-fallback"
+          PAYLOAD_FILE="$RUNNER_TEMP/setup-payload.json"
           CAPTURE_DATE="2099-01-01"
           APPLICATION_ID="${CAPTURE_DATE}_example_co_senior_ios_engineer"
-          python job-application-workflow/scripts/bootstrap.py setup \
-            --workspace "$WORKSPACE_DIR" \
-            --candidate-file job-application-workflow/assets/samples/sample_candidate_profile.json \
-            --import job-application-workflow/assets/samples/sample_resume_import.md
+          python - <<PY
+          import json
+          from pathlib import Path
+          payload = json.loads(Path("job-application-workflow/assets/samples/sample_agent_setup_payload.json").read_text(encoding="utf-8"))
+          payload["workspace_path"] = "$WORKSPACE_DIR"
+          payload["import_paths"] = [str(Path("job-application-workflow/assets/samples/sample_resume_import.md").resolve())]
+          Path("$PAYLOAD_FILE").write_text(json.dumps(payload, indent=2), encoding="utf-8")
+          PY
+
+          python job-application-workflow/scripts/bootstrap.py setup-from-payload \
+            --payload-file "$PAYLOAD_FILE"
 
           test -f "$WORKSPACE_DIR/config/candidate.yaml"
           test -f "$WORKSPACE_DIR/source/working/master_resume_2p.md"
@@ -81,3 +90,10 @@ jobs:
             --log-note "Smoke test updated tracking."
 
           grep -q "Example Co" "$WORKSPACE_DIR/tracking/applications.csv"
+
+          python job-application-workflow/scripts/bootstrap.py setup \
+            --workspace "$FALLBACK_WORKSPACE_DIR" \
+            --candidate-file job-application-workflow/assets/samples/sample_candidate_profile.json \
+            --import job-application-workflow/assets/samples/sample_resume_import.md
+
+          test -f "$FALLBACK_WORKSPACE_DIR/source/working/master_resume_2p.md"

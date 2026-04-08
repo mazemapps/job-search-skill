@@ -1,14 +1,22 @@
-# Job Application Workflow Skill
+# Job Application Workflow
 
-This repository packages `job-application-workflow` as a public, installable Codex skill.
-The installable skill lives in [`job-application-workflow`](/Users/mirroring/Desktop/job-search-skill/job-application-workflow) and is self-contained: the SOP, bootstrap scripts, workspace templates, and sample data all ship inside that folder so it can be installed directly from a GitHub path.
+This repository packages `job-application-workflow` as a public, installable Codex skill with a hidden local backend.
+The primary user experience is chat-first: the user talks to the agent, and the agent handles onboarding, dependency setup, and workspace creation without asking the user to manually run bootstrap commands in the normal path.
 
 ## What This Repo Provides
 
 - A public Codex skill for two scenarios:
   - `setup`: bootstrap a fresh job-search workspace on a clean machine
   - `apply`: run the job-application workflow after the workspace exists
-- A cross-platform bootstrap entrypoint:
+- A deterministic local backend in [bootstrap.py](/Users/mirroring/Desktop/job-search-skill/job-application-workflow/scripts/bootstrap.py) for:
+  - dependency checks and installation
+  - workspace scaffolding
+  - file import
+  - pointer writes
+  - tracking helpers
+- An agent backend entrypoint:
+  - `python scripts/bootstrap.py setup-from-payload --payload-file <path>`
+- A fallback CLI setup entrypoint for debugging and automation:
   - `python scripts/bootstrap.py setup --workspace <path>`
 - Workspace scaffolding for:
   - `source/originals/`
@@ -39,30 +47,32 @@ python job-application-workflow/scripts/bootstrap.py setup --workspace ~/job-sea
 
 Restart Codex after installation so it picks up the new skill.
 
-## Quickstart
+## Primary Usage
 
-1. Install the skill, then run bootstrap:
+1. Install the skill.
+2. Restart Codex.
+3. Talk to the agent.
 
-```bash
-python ~/.codex/skills/job-application-workflow/scripts/bootstrap.py setup --workspace ~/job-search
-```
+Typical prompts:
 
-When setup starts, it now behaves like a guided wizard:
+- `Set up my job application workflow`
+- `Help me create a master resume`
+- `Подайся на вакансию` when no workspace exists yet
 
-- it prints a short welcome/manual
-- it asks about existing resume/CV files first
-- it supports adding a LinkedIn URL as a guided reference
-- it saves `START_HERE.md` in the workspace with the next actions
+In the primary path, the agent should:
 
-2. If you want a non-interactive setup, pass the sample-style candidate JSON:
+- propose a default workspace path like `~/job-search`
+- ask about existing files first
+- support a LinkedIn URL as a guided reference
+- collect only the missing facts in chat
+- call the backend internally
+- report the created artifacts back to the user
 
-```bash
-python ~/.codex/skills/job-application-workflow/scripts/bootstrap.py setup \
-  --workspace ~/job-search \
-  --candidate-file ~/.codex/skills/job-application-workflow/assets/samples/sample_candidate_profile.json
-```
+## Fallback CLI
 
-3. Optional: import existing materials during setup:
+CLI is still useful for debugging, CI, or direct local automation.
+
+Setup wizard fallback:
 
 ```bash
 python ~/.codex/skills/job-application-workflow/scripts/bootstrap.py setup \
@@ -71,23 +81,33 @@ python ~/.codex/skills/job-application-workflow/scripts/bootstrap.py setup \
   --import ~/Documents/resume.md
 ```
 
-You can also skip `--import` and let the interactive wizard ask for files during setup.
+Agent/backend path:
 
-If you only have LinkedIn at hand, the wizard supports a LinkedIn URL as a reference source. It does not scrape LinkedIn automatically; instead it stores the URL, creates guided instructions, and helps the user continue with one of these paths:
+```bash
+python ~/.codex/skills/job-application-workflow/scripts/bootstrap.py setup-from-payload \
+  --payload-file ~/.codex/skills/job-application-workflow/assets/samples/sample_agent_setup_payload.json \
+  --workspace ~/job-search
+```
+
+Seed-based automation path:
+
+```bash
+python ~/.codex/skills/job-application-workflow/scripts/bootstrap.py setup \
+  --workspace ~/job-search \
+  --candidate-file ~/.codex/skills/job-application-workflow/assets/samples/sample_candidate_profile.json
+```
+
+## LinkedIn Support
+
+If the user only has LinkedIn at hand, the workflow supports a LinkedIn URL as a reference source. It does not scrape LinkedIn automatically; instead it stores the URL, creates guided instructions, and helps the user continue with one of these paths:
 
 - add a LinkedIn PDF/export
 - paste relevant profile text manually
 - continue with a lightweight manual intake
 
-You can also pass a LinkedIn URL directly:
+## After Setup
 
-```bash
-python ~/.codex/skills/job-application-workflow/scripts/bootstrap.py setup \
-  --workspace ~/job-search \
-  --linkedin-url https://www.linkedin.com/in/your-profile/
-```
-
-4. After setup, scaffold a vacancy record:
+The workspace can then be used for vacancy capture:
 
 ```bash
 python ~/.codex/skills/job-application-workflow/scripts/bootstrap.py capture-vacancy \
@@ -97,7 +117,7 @@ python ~/.codex/skills/job-application-workflow/scripts/bootstrap.py capture-vac
   --jd-file ./job_description.txt
 ```
 
-5. Export PDFs from the generated workspace:
+And PDF export:
 
 ```bash
 python ~/job-search/scripts/export_resume_pdf.py ~/job-search
@@ -144,9 +164,12 @@ Package manager order by platform:
 
 If auto-install fails, bootstrap prints exact fallback commands for the detected platform.
 
-## Candidate Seed File
+## Candidate Seed And Agent Payload Files
 
-For automation and CI, bootstrap accepts a JSON seed file. The sample lives at [`sample_candidate_profile.json`](/Users/mirroring/Desktop/job-search-skill/job-application-workflow/assets/samples/sample_candidate_profile.json).
+For automation and CI, bootstrap accepts:
+
+- a candidate seed JSON at [`sample_candidate_profile.json`](/Users/mirroring/Desktop/job-search-skill/job-application-workflow/assets/samples/sample_candidate_profile.json)
+- an agent/backend payload JSON at [`sample_agent_setup_payload.json`](/Users/mirroring/Desktop/job-search-skill/job-application-workflow/assets/samples/sample_agent_setup_payload.json)
 
 Expected schema:
 
@@ -181,6 +204,8 @@ Expected schema:
   ]
 }
 ```
+
+The agent payload wraps the candidate data plus workspace/source metadata for hidden backend setup.
 
 ## Repository Layout
 

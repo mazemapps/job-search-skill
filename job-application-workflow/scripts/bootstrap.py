@@ -85,6 +85,34 @@ SETUP_STEPS = [
     "Experience",
     "Review",
 ]
+REQUIRED_TEXT_FIELDS = [
+    "full_name",
+    "target_role_family",
+    "email",
+    "location",
+    "pdf_resume_basename",
+    "pdf_cover_letter_basename",
+    "default_language",
+    "professional_summary",
+]
+OPTIONAL_TEXT_FIELDS = [
+    "phone",
+    "portfolio_url",
+    "linkedin_url",
+]
+LIST_FIELDS = [
+    "core_skills",
+    "languages",
+    "education",
+]
+EXPERIENCE_FIELDS = [
+    "company",
+    "role",
+    "location",
+    "dates",
+    "tech_stack",
+    "bullets",
+]
 
 
 def command_exists(command: str) -> bool:
@@ -177,13 +205,17 @@ def ensure_dependencies(skip_install: bool) -> None:
     raise SystemExit("\n".join(lines))
 
 
+def load_json_file(path: Path) -> dict[str, Any]:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise SystemExit(f"Expected a JSON object in {path}")
+    return data
+
+
 def load_candidate_seed(candidate_file: Path | None) -> dict[str, Any]:
     if candidate_file is None:
         return {}
-    data = json.loads(candidate_file.read_text(encoding="utf-8"))
-    if not isinstance(data, dict):
-        raise SystemExit("Candidate seed file must contain a JSON object.")
-    return data
+    return load_json_file(candidate_file)
 
 
 def is_interactive() -> bool:
@@ -325,6 +357,17 @@ def ensure_import_paths(paths: list[Path]) -> None:
         raise SystemExit("Import paths not found:\n" + "\n".join(missing))
 
 
+def normalize_source_modes(import_paths: list[str], linkedin_url: str) -> list[str]:
+    source_modes: list[str] = []
+    if import_paths:
+        source_modes.append("existing_files")
+    if linkedin_url:
+        source_modes.append("linkedin_url")
+    if not source_modes:
+        source_modes.append("start_from_scratch")
+    return source_modes
+
+
 def choose_source_state(seed: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]:
     source_state = {
         "import_paths": list(args.imports),
@@ -335,13 +378,7 @@ def choose_source_state(seed: dict[str, Any], args: argparse.Namespace) -> dict[
     }
 
     if not is_interactive():
-        source_state["source_modes"] = []
-        if source_state["import_paths"]:
-            source_state["source_modes"].append("existing_files")
-        if source_state["linkedin_url"]:
-            source_state["source_modes"].append("linkedin_url")
-        if not source_state["source_modes"]:
-            source_state["source_modes"].append("start_from_scratch")
+        source_state["source_modes"] = normalize_source_modes(source_state["import_paths"], source_state["linkedin_url"])
         return source_state
 
     print_step(2, SETUP_STEPS[1])
@@ -359,7 +396,10 @@ def choose_source_state(seed: dict[str, Any], args: argparse.Namespace) -> dict[
         if not keep_imports:
             source_state["import_paths"] = []
 
-    if prompt_yes_no("Do you want to import existing resume or CV files first?", default=not existing_imports or bool(source_state["import_paths"])):
+    if prompt_yes_no(
+        "Do you want to import existing resume or CV files first?",
+        default=not existing_imports or bool(source_state["import_paths"]),
+    ):
         source_state["import_paths"] = prompt_file_paths(source_state["import_paths"])
 
     if source_state["linkedin_url"]:
@@ -368,7 +408,10 @@ def choose_source_state(seed: dict[str, Any], args: argparse.Namespace) -> dict[
             source_state["linkedin_url"] = ""
             source_state["linkedin_followup"] = ""
 
-    if not source_state["linkedin_url"] and prompt_yes_no("Do you want to add a LinkedIn profile URL as a reference?", default=True):
+    if not source_state["linkedin_url"] and prompt_yes_no(
+        "Do you want to add a LinkedIn profile URL as a reference?",
+        default=True,
+    ):
         source_state["linkedin_url"] = prompt("Paste your LinkedIn profile URL")
 
     if source_state["linkedin_url"] and not source_state["linkedin_followup"]:
@@ -387,13 +430,10 @@ def choose_source_state(seed: dict[str, Any], args: argparse.Namespace) -> dict[
             "3": "continue_manual",
         }[followup_choice]
 
-    source_state["source_modes"] = []
-    if source_state["import_paths"]:
-        source_state["source_modes"].append("existing_files")
-    if source_state["linkedin_url"]:
-        source_state["source_modes"].append("linkedin_url")
-    if not source_state["source_modes"]:
-        source_state["source_modes"].append("start_from_scratch")
+    source_state["source_modes"] = normalize_source_modes(
+        source_state["import_paths"],
+        source_state["linkedin_url"],
+    )
 
     mode_summary = []
     if "existing_files" in source_state["source_modes"]:
@@ -446,10 +486,11 @@ def collect_profile_basics(data: dict[str, Any], source_state: dict[str, Any]) -
         data["linkedin_url"] = prompt_optional("LinkedIn URL (optional)")
         if data["linkedin_url"]:
             source_state["linkedin_url"] = data["linkedin_url"]
-            if "linkedin_url" not in source_state["source_modes"]:
-                source_state["source_modes"].append("linkedin_url")
+            source_state["source_modes"] = normalize_source_modes(source_state["import_paths"], source_state["linkedin_url"])
 
-    print_block(f"Checkpoint: baseline docs will be created for {data['full_name']} ({data['target_role_family']}).")
+    print_block(
+        f"Checkpoint: baseline docs will be created for {data['full_name']} ({data['target_role_family']})."
+    )
 
 
 def collect_summary_block(data: dict[str, Any], source_state: dict[str, Any]) -> None:
@@ -494,8 +535,15 @@ def collect_experience_block(data: dict[str, Any], source_state: dict[str, Any])
 def build_review_summary(data: dict[str, Any], source_state: dict[str, Any], import_paths: list[Path]) -> str:
     imported_names = ", ".join(path.name for path in import_paths) if import_paths else "none"
     linkedin_value = source_state["linkedin_url"] or "not provided"
-    manual_sections = ", ".join(source_state["manual_sections"]) if source_state["manual_sections"] else "seed/import sources only"
-    experience_titles = ", ".join(f"{item['company']} - {item['role']}" for item in data.get("experiences", []))
+    manual_sections = (
+        ", ".join(source_state["manual_sections"])
+        if source_state["manual_sections"]
+        else "seed/import sources only"
+    )
+    experience_titles = ", ".join(
+        f"{item['company']} - {item['role']}"
+        for item in data.get("experiences", [])
+    )
     return "\n".join(
         [
             f"Candidate: {data.get('full_name', 'unknown')}",
@@ -534,7 +582,13 @@ def review_setup_data(data: dict[str, Any], source_state: dict[str, Any], import
         if decision == "1":
             return
         if decision == "2":
-            updated = choose_source_state(data, argparse.Namespace(imports=[str(path) for path in import_paths]))
+            updated = choose_source_state(
+                data,
+                argparse.Namespace(
+                    imports=[str(path) for path in import_paths],
+                    linkedin_url=source_state.get("linkedin_url", ""),
+                ),
+            )
             source_state["import_paths"] = updated["import_paths"]
             source_state["linkedin_url"] = updated["linkedin_url"]
             source_state["linkedin_followup"] = updated["linkedin_followup"]
@@ -605,12 +659,20 @@ def copy_with_unique_name(source: Path, destination_dir: Path) -> Path:
 
 
 def format_contact_bullets(data: dict[str, Any]) -> str:
-    linkedin_line = f"- LinkedIn: {data['linkedin_url']}" if data.get("linkedin_url") else "- LinkedIn: not provided yet"
-    portfolio_line = f"- Portfolio: {data['portfolio_url']}" if data.get("portfolio_url") else "- Portfolio: not provided yet"
+    linkedin_line = (
+        f"- LinkedIn: {data['linkedin_url']}"
+        if data.get("linkedin_url")
+        else "- LinkedIn: not provided yet"
+    )
+    portfolio_line = (
+        f"- Portfolio: {data['portfolio_url']}"
+        if data.get("portfolio_url")
+        else "- Portfolio: not provided yet"
+    )
     return "\n".join(
         [
             f"- Email: {data['email']}",
-            f"- Phone: {data['phone']}",
+            f"- Phone: {data.get('phone', '')}",
             f"- Location: {data['location']}",
             linkedin_line,
             portfolio_line,
@@ -665,11 +727,22 @@ def build_template_context(
     imported_files: list[Path],
     source_state: dict[str, Any],
 ) -> dict[str, str]:
-    imported_bullets = [f"- {path.name}" for path in imported_files] or ["- No external source files were imported during bootstrap."]
-    manual_sections = source_state["manual_sections"] or ["No interactive sections were entered during this run."]
+    imported_bullets = [
+        f"- {path.name}"
+        for path in imported_files
+    ] or ["- No external source files were imported during bootstrap."]
+    manual_sections = source_state["manual_sections"] or [
+        "No interactive sections were entered during this run."
+    ]
     manual_bullets = [f"- {section}" for section in manual_sections]
-    source_modes = [mode.replace("_", " ") for mode in source_state["source_modes"]] or ["start from scratch"]
-    linkedin_reference = source_state["linkedin_url"] or "No LinkedIn URL was provided during setup."
+    source_modes = [
+        mode.replace("_", " ")
+        for mode in source_state["source_modes"]
+    ] or ["start from scratch"]
+    linkedin_reference = (
+        source_state["linkedin_url"]
+        or "No LinkedIn URL was provided during setup."
+    )
     linkedin_next_step_map = {
         "attach_export": "Add a LinkedIn PDF/export file into source/originals/ and update the intake notes.",
         "paste_text": "Paste key LinkedIn profile text into source/intake/linkedin_import_instructions.md and refine the working resume.",
@@ -683,10 +756,10 @@ def build_template_context(
         "FULL_NAME": data["full_name"],
         "TARGET_ROLE_FAMILY": data["target_role_family"],
         "EMAIL": data["email"],
-        "PHONE": data["phone"],
+        "PHONE": data.get("phone", ""),
         "LOCATION": data["location"],
         "LINKEDIN_URL": data.get("linkedin_url", ""),
-        "PORTFOLIO_URL": data["portfolio_url"],
+        "PORTFOLIO_URL": data.get("portfolio_url", ""),
         "PDF_RESUME_BASENAME": data["pdf_resume_basename"],
         "PDF_COVER_LETTER_BASENAME": data["pdf_cover_letter_basename"],
         "DEFAULT_LANGUAGE": data["default_language"],
@@ -705,12 +778,19 @@ def build_template_context(
         "LINKEDIN_NEXT_STEP": linkedin_next_step,
         "WORKSPACE_PATH": str(workspace),
         "START_HERE_PATH": str(workspace / "START_HERE.md"),
-        "MASTER_RESUME_CLEAN_PATH": str(workspace / "source" / "working" / "master_resume_clean_source.md"),
-        "MASTER_RESUME_SUBMISSION_PATH": str(workspace / "source" / "working" / "master_resume_2p.md"),
+        "MASTER_RESUME_CLEAN_PATH": str(
+            workspace / "source" / "working" / "master_resume_clean_source.md"
+        ),
+        "MASTER_RESUME_SUBMISSION_PATH": str(
+            workspace / "source" / "working" / "master_resume_2p.md"
+        ),
         "TRACKING_PATH": str(workspace / "tracking" / "applications.csv"),
         "APPLICATIONS_PATH": str(workspace / "applications"),
         "RESUME_EXPORT_COMMAND": f"python {workspace / 'scripts' / 'export_resume_pdf.py'} {workspace}",
-        "REBUILD_PDFS_COMMAND": f"python {workspace / 'scripts' / 'rebuild_pdfs.py'} {workspace / 'applications'}",
+        "REBUILD_PDFS_COMMAND": (
+            f"python {workspace / 'scripts' / 'rebuild_pdfs.py'} "
+            f"{workspace / 'applications'}"
+        ),
         "CAPTURE_VACANCY_COMMAND": (
             f'python ~/.codex/skills/job-application-workflow/scripts/bootstrap.py capture-vacancy '
             f'--workspace "{workspace}" --company "Example Co" --role "Senior iOS Engineer" '
@@ -740,7 +820,10 @@ def render_workspace(workspace: Path, context: dict[str, str]) -> None:
             destination = destination.with_suffix("")
             content = render_template(source.read_text(encoding="utf-8"), context)
             ensure_parent(destination)
-            destination.write_text(content + ("" if content.endswith("\n") else "\n"), encoding="utf-8")
+            destination.write_text(
+                content + ("" if content.endswith("\n") else "\n"),
+                encoding="utf-8",
+            )
         else:
             ensure_parent(destination)
             shutil.copy2(source, destination)
@@ -775,7 +858,10 @@ def write_pointer(workspace: Path) -> None:
         "workspace_path": str(workspace.resolve()),
         "updated_at": dt.datetime.now().isoformat(timespec="seconds"),
     }
-    POINTER_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+    POINTER_FILE.write_text(
+        json.dumps(data, indent=2, ensure_ascii=True) + "\n",
+        encoding="utf-8",
+    )
 
 
 def resolve_workspace(workspace_arg: str | None) -> Path:
@@ -789,36 +875,145 @@ def resolve_workspace(workspace_arg: str | None) -> Path:
     raise SystemExit("Workspace path is required. Run setup first or pass --workspace.")
 
 
-def prepare_candidate_data(seed: dict[str, Any], source_state: dict[str, Any]) -> dict[str, Any]:
-    data = dict(seed)
-    data["linkedin_url"] = source_state["linkedin_url"] or str(data.get("linkedin_url", "")).strip()
-    collect_profile_basics(data, source_state)
-    collect_summary_block(data, source_state)
-    collect_list_blocks(data, source_state)
-    collect_experience_block(data, source_state)
-    return data
+def validate_candidate_data(data: dict[str, Any]) -> dict[str, Any]:
+    normalized = dict(data)
+    for field in OPTIONAL_TEXT_FIELDS:
+        normalized[field] = str(normalized.get(field, "")).strip()
+
+    for field in REQUIRED_TEXT_FIELDS:
+        value = str(normalized.get(field, "")).strip()
+        if not value:
+            raise SystemExit(f"Missing required candidate field: {field}")
+        normalized[field] = value
+
+    for field in LIST_FIELDS:
+        values = normalized.get(field)
+        if not isinstance(values, list) or not values:
+            raise SystemExit(f"Expected a non-empty list for candidate field: {field}")
+        cleaned = [str(item).strip() for item in values if str(item).strip()]
+        if not cleaned:
+            raise SystemExit(f"Expected at least one non-empty value for candidate field: {field}")
+        normalized[field] = cleaned
+
+    experiences = normalized.get("experiences")
+    if not isinstance(experiences, list) or not experiences:
+        raise SystemExit("Expected a non-empty list for candidate field: experiences")
+
+    cleaned_experiences: list[dict[str, Any]] = []
+    for index, experience in enumerate(experiences, start=1):
+        if not isinstance(experience, dict):
+            raise SystemExit(f"Experience #{index} must be a JSON object")
+        cleaned_experience: dict[str, Any] = {}
+        for field in EXPERIENCE_FIELDS:
+            if field not in experience:
+                raise SystemExit(f"Experience #{index} is missing field: {field}")
+            value = experience[field]
+            if field in {"tech_stack", "bullets"}:
+                if not isinstance(value, list) or not value:
+                    raise SystemExit(f"Experience #{index} field {field} must be a non-empty list")
+                cleaned_list = [str(item).strip() for item in value if str(item).strip()]
+                if not cleaned_list:
+                    raise SystemExit(f"Experience #{index} field {field} must contain non-empty values")
+                cleaned_experience[field] = cleaned_list
+            else:
+                cleaned_value = str(value).strip()
+                if not cleaned_value:
+                    raise SystemExit(f"Experience #{index} field {field} must not be empty")
+                cleaned_experience[field] = cleaned_value
+        cleaned_experiences.append(cleaned_experience)
+    normalized["experiences"] = cleaned_experiences
+    return normalized
 
 
-def run_setup(args: argparse.Namespace) -> int:
-    workspace = Path(args.workspace).expanduser().resolve()
-    ensure_dependencies(skip_install=args.skip_install)
+def normalize_source_state_from_payload(payload: dict[str, Any], candidate: dict[str, Any]) -> dict[str, Any]:
+    source_state = dict(payload.get("source_state", {}))
+    import_paths = payload.get("import_paths", source_state.get("import_paths", []))
+    if not isinstance(import_paths, list):
+        raise SystemExit("Payload field import_paths must be a list when provided")
+    linkedin_url = str(
+        payload.get("linkedin_url", source_state.get("linkedin_url", candidate.get("linkedin_url", "")))
+    ).strip()
+    linkedin_followup = str(
+        payload.get("linkedin_followup", source_state.get("linkedin_followup", "continue_manual"))
+    ).strip()
+    manual_sections = payload.get("manual_sections", source_state.get("manual_sections", []))
+    if not isinstance(manual_sections, list):
+        raise SystemExit("Payload field manual_sections must be a list when provided")
+    source_modes = payload.get("source_modes", source_state.get("source_modes", []))
+    if not isinstance(source_modes, list):
+        raise SystemExit("Payload field source_modes must be a list when provided")
+    if not source_modes:
+        source_modes = normalize_source_modes(import_paths, linkedin_url)
+    if not manual_sections:
+        manual_sections = ["Collected through agent chat"]
 
-    if workspace.exists() and any(workspace.iterdir()) and not args.force:
-        raise SystemExit(f"Workspace already exists and is not empty: {workspace}. Use --force to continue.")
+    return {
+        "import_paths": [str(item) for item in import_paths],
+        "linkedin_url": linkedin_url,
+        "linkedin_followup": linkedin_followup or "continue_manual",
+        "source_modes": [str(item) for item in source_modes],
+        "manual_sections": [str(item) for item in manual_sections],
+    }
+
+
+def extract_candidate_from_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    if isinstance(payload.get("candidate"), dict):
+        candidate = dict(payload["candidate"])
+    else:
+        candidate = {
+            key: value
+            for key, value in payload.items()
+            if key in set(REQUIRED_TEXT_FIELDS + OPTIONAL_TEXT_FIELDS + LIST_FIELDS + ["experiences"])
+        }
+    return validate_candidate_data(candidate)
+
+
+def build_setup_result(
+    workspace: Path,
+    imported_files: list[Path],
+    source_state: dict[str, Any],
+) -> dict[str, Any]:
+    linkedin_guidance_path = workspace / "source" / "intake" / "linkedin_import_instructions.md"
+    return {
+        "workspace_path": str(workspace),
+        "pointer_path": str(POINTER_FILE),
+        "start_here_path": str(workspace / "START_HERE.md"),
+        "master_resume_clean_path": str(
+            workspace / "source" / "working" / "master_resume_clean_source.md"
+        ),
+        "master_resume_submission_path": str(
+            workspace / "source" / "working" / "master_resume_2p.md"
+        ),
+        "tracking_path": str(workspace / "tracking" / "applications.csv"),
+        "imported_files": [str(path) for path in imported_files],
+        "linkedin_url": source_state["linkedin_url"],
+        "linkedin_guidance_path": (
+            str(linkedin_guidance_path)
+            if linkedin_guidance_path.exists()
+            else ""
+        ),
+    }
+
+
+def materialize_workspace(
+    workspace: Path,
+    candidate_data: dict[str, Any],
+    source_state: dict[str, Any],
+    import_paths: list[Path],
+    *,
+    skip_install: bool,
+    force: bool,
+) -> dict[str, Any]:
+    ensure_dependencies(skip_install=skip_install)
+
+    if workspace.exists() and any(workspace.iterdir()) and not force:
+        raise SystemExit(
+            f"Workspace already exists and is not empty: {workspace}. Use --force to continue."
+        )
 
     workspace.mkdir(parents=True, exist_ok=True)
     ensure_workspace_contract_dirs(workspace)
-
-    print_step(1, SETUP_STEPS[0])
-    print_block(build_welcome_text(workspace))
-
-    seed = load_candidate_seed(Path(args.candidate_file).expanduser().resolve() if args.candidate_file else None)
-    source_state = choose_source_state(seed, args)
-    import_paths = normalize_path_list(source_state["import_paths"])
     ensure_import_paths(import_paths)
-
-    candidate_data = prepare_candidate_data(seed, source_state)
-    review_setup_data(candidate_data, source_state, import_paths)
 
     originals_dir = workspace / "source" / "originals"
     originals_dir.mkdir(parents=True, exist_ok=True)
@@ -829,11 +1024,78 @@ def run_setup(args: argparse.Namespace) -> int:
     cleanup_optional_files(workspace, source_state)
     write_pointer(workspace)
 
+    return build_setup_result(workspace, imported_files, source_state)
+
+
+def prepare_candidate_data(seed: dict[str, Any], source_state: dict[str, Any]) -> dict[str, Any]:
+    data = dict(seed)
+    data["linkedin_url"] = source_state["linkedin_url"] or str(data.get("linkedin_url", "")).strip()
+    collect_profile_basics(data, source_state)
+    collect_summary_block(data, source_state)
+    collect_list_blocks(data, source_state)
+    collect_experience_block(data, source_state)
+    return validate_candidate_data(data)
+
+
+def load_setup_payload(payload_file: Path) -> dict[str, Any]:
+    return load_json_file(payload_file)
+
+
+def run_setup(args: argparse.Namespace) -> int:
+    workspace = Path(args.workspace).expanduser().resolve()
+
+    print_step(1, SETUP_STEPS[0])
+    print_block(build_welcome_text(workspace))
+
+    seed = load_candidate_seed(
+        Path(args.candidate_file).expanduser().resolve()
+        if args.candidate_file
+        else None
+    )
+    source_state = choose_source_state(seed, args)
+    import_paths = normalize_path_list(source_state["import_paths"])
+    ensure_import_paths(import_paths)
+
+    candidate_data = prepare_candidate_data(seed, source_state)
+    review_setup_data(candidate_data, source_state, import_paths)
+
+    result = materialize_workspace(
+        workspace,
+        candidate_data,
+        source_state,
+        import_paths,
+        skip_install=args.skip_install,
+        force=args.force,
+    )
+
     print("\nSetup complete.")
-    print(f"- Start here: {workspace / 'START_HERE.md'}")
-    print(f"- Master resume: {workspace / 'source' / 'working' / 'master_resume_2p.md'}")
-    print(f"- Tracking file: {workspace / 'tracking' / 'applications.csv'}")
-    print(workspace)
+    print(f"- Start here: {result['start_here_path']}")
+    print(f"- Master resume: {result['master_resume_submission_path']}")
+    print(f"- Tracking file: {result['tracking_path']}")
+    print(result["workspace_path"])
+    return 0
+
+
+def run_setup_from_payload(args: argparse.Namespace) -> int:
+    payload = load_setup_payload(Path(args.payload_file).expanduser().resolve())
+    payload_workspace = payload.get("workspace_path")
+    workspace_value = args.workspace or payload_workspace
+    if not workspace_value:
+        raise SystemExit("setup-from-payload requires --workspace or payload.workspace_path")
+
+    workspace = Path(str(workspace_value)).expanduser().resolve()
+    candidate_data = extract_candidate_from_payload(payload)
+    source_state = normalize_source_state_from_payload(payload, candidate_data)
+    import_paths = normalize_path_list(source_state["import_paths"])
+    result = materialize_workspace(
+        workspace,
+        candidate_data,
+        source_state,
+        import_paths,
+        skip_install=args.skip_install or bool(payload.get("skip_install", False)),
+        force=args.force or bool(payload.get("force", False)),
+    )
+    print(json.dumps(result, indent=2, ensure_ascii=True))
     return 0
 
 
@@ -971,19 +1233,69 @@ def run_track_event(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Bootstrap and operate the public job application workflow.")
+    parser = argparse.ArgumentParser(
+        description="Bootstrap and operate the public job application workflow."
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    setup = subparsers.add_parser("setup", help="Create a fresh public job-search workspace.")
+    setup = subparsers.add_parser(
+        "setup",
+        help="Create a fresh public job-search workspace.",
+    )
     setup.add_argument("--workspace", required=True, help="Target workspace path")
     setup.add_argument("--candidate-file", help="JSON file with candidate seed data")
-    setup.add_argument("--import", dest="imports", action="append", default=[], help="Existing source file to copy into source/originals")
-    setup.add_argument("--linkedin-url", help="LinkedIn profile URL to save as a guided reference source")
-    setup.add_argument("--skip-install", action="store_true", help="Skip dependency installation attempts")
-    setup.add_argument("--force", action="store_true", help="Allow setup into an existing non-empty workspace")
+    setup.add_argument(
+        "--import",
+        dest="imports",
+        action="append",
+        default=[],
+        help="Existing source file to copy into source/originals",
+    )
+    setup.add_argument(
+        "--linkedin-url",
+        help="LinkedIn profile URL to save as a guided reference source",
+    )
+    setup.add_argument(
+        "--skip-install",
+        action="store_true",
+        help="Skip dependency installation attempts",
+    )
+    setup.add_argument(
+        "--force",
+        action="store_true",
+        help="Allow setup into an existing non-empty workspace",
+    )
     setup.set_defaults(handler=run_setup)
 
-    capture = subparsers.add_parser("capture-vacancy", help="Create a vacancy folder and tracking entry.")
+    setup_from_payload = subparsers.add_parser(
+        "setup-from-payload",
+        help="Create a workspace from a structured payload for agent-driven setup.",
+    )
+    setup_from_payload.add_argument(
+        "--payload-file",
+        required=True,
+        help="JSON file with workspace, source, and candidate data",
+    )
+    setup_from_payload.add_argument(
+        "--workspace",
+        help="Workspace path override. Defaults to payload.workspace_path",
+    )
+    setup_from_payload.add_argument(
+        "--skip-install",
+        action="store_true",
+        help="Skip dependency installation attempts",
+    )
+    setup_from_payload.add_argument(
+        "--force",
+        action="store_true",
+        help="Allow setup into an existing non-empty workspace",
+    )
+    setup_from_payload.set_defaults(handler=run_setup_from_payload)
+
+    capture = subparsers.add_parser(
+        "capture-vacancy",
+        help="Create a vacancy folder and tracking entry.",
+    )
     capture.add_argument("--workspace", help="Workspace path. Defaults to pointer config.")
     capture.add_argument("--date", help="Capture date in YYYY-MM-DD format")
     capture.add_argument("--company", required=True, help="Company name")
@@ -993,9 +1305,16 @@ def build_parser() -> argparse.ArgumentParser:
     capture.add_argument("--jd-text", help="Inline full job description text")
     capture.set_defaults(handler=run_capture_vacancy)
 
-    track = subparsers.add_parser("track-event", help="Update tracking and append a log entry.")
+    track = subparsers.add_parser(
+        "track-event",
+        help="Update tracking and append a log entry.",
+    )
     track.add_argument("--workspace", help="Workspace path. Defaults to pointer config.")
-    track.add_argument("--application-id", required=True, help="Tracking id, e.g. YYYY-MM-DD_company_role")
+    track.add_argument(
+        "--application-id",
+        required=True,
+        help="Tracking id, e.g. YYYY-MM-DD_company_role",
+    )
     track.add_argument("--status", help="New status value")
     track.add_argument("--last-action", help="Value for last_action")
     track.add_argument("--next-action", help="Value for next_action")

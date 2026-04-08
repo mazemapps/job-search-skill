@@ -13,23 +13,30 @@ Use this skill for two intent families:
 ## Setup Mode
 
 - Read [references/bootstrap.md](references/bootstrap.md).
-- Use `scripts/bootstrap.py` as the public bootstrap entrypoint.
-- Prefer:
-  `python scripts/bootstrap.py setup --workspace <path>`
-- Treat setup as a guided onboarding wizard, not a raw questionnaire.
-- The wizard should:
-  - explain what will be created
-  - ask about existing files first
-  - support a LinkedIn URL as a guided reference source
-  - save `START_HERE.md` in the workspace
+- Treat setup as agent-first onboarding, not as a user-run terminal flow.
+- First check `~/.codex/job-application-workflow/config.json`.
+- If no workspace pointer exists:
+  - propose a default path such as `~/job-search`
+  - collect source inputs in chat: local paths/files first, then LinkedIn URL, then pasted text/manual gap fill
+  - collect missing profile, summary, skills, education, languages, and experiences in short chat blocks
+  - show a compact review summary in chat
+  - write a temporary JSON payload and call the hidden backend:
+    `python scripts/bootstrap.py setup-from-payload --payload-file <temp-json>`
+- The user should not need to manually run `python scripts/bootstrap.py setup ...` in the primary path.
+- Keep `setup` as a fallback CLI/debug path only.
 - The bootstrap script writes the workspace pointer to:
   `~/.codex/job-application-workflow/config.json`
-- If the pointer is missing and the user asks for apply-mode work, help them run setup first or ask for the workspace path.
+- After backend success, tell the user only the important outcomes:
+  - `START_HERE.md`
+  - master resume files
+  - tracking file
+  - workspace path
 
 ## Apply Mode
 
 - Read [references/workflow.md](references/workflow.md).
 - Resolve the workspace from `~/.codex/job-application-workflow/config.json` unless the user gives a different path.
+- If the pointer is missing, automatically switch into setup mode in the same chat and complete onboarding before continuing.
 - Prefer deterministic helpers when they fit:
   - `python scripts/bootstrap.py capture-vacancy ...`
   - `python scripts/bootstrap.py track-event ...`
@@ -41,3 +48,4 @@ Use this skill for two intent families:
 - Treat `config/candidate.yaml`, `source/originals/`, `source/working/`, and saved `vacancy.md` as the local source of truth.
 - Keep generated markdown ATS-safe and HR-safe.
 - Use runtime assets from this skill folder only; do not depend on external unpublished files.
+- LinkedIn remains a guided reference source only. Do not scrape or auto-parse it from the network.
