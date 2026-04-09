@@ -35,8 +35,7 @@ Install from a GitHub path once the repo is published:
 
 ```bash
 python ~/.codex/skills/.system/skill-installer/scripts/install-skill-from-github.py \
-  --repo OWNER/REPO \
-  --path job-application-workflow
+  --repo https://github.com/mazemapps/job-search-skill
 ```
 
 For local development, the equivalent bootstrap command is:
