@@ -50,13 +50,15 @@ Restart Codex after installation so it picks up the new skill.
 
 1. Install the skill.
 2. Restart Codex.
-3. Talk to the agent.
+3. Talk to the agent.` @Job-Application-Workflow Init with CV.` And attach CV as PDF.
+or
+`@Job-Application-Workflow Init with [linkedin link]`
 
 Typical prompts:
 
 - `Set up my job application workflow`
 - `Help me create a master resume`
-- `Подайся на вакансию` when no workspace exists yet
+- `Apply to vacancy` when no workspace exists yet
 
 In the primary path, the agent should:
 
@@ -76,8 +78,7 @@ Setup wizard fallback:
 ```bash
 python ~/.codex/skills/job-application-workflow/scripts/bootstrap.py setup \
   --workspace ~/job-search \
-  --import ~/Downloads/linkedin_profile.pdf \
-  --import ~/Documents/resume.md
+  --import ~/Downloads/linkedin_profile.pdf
 ```
 
 Agent/backend path:
