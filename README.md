@@ -29,13 +29,14 @@ The primary user experience is chat-first: the user talks to the agent, and the 
 - PDF export helpers that use `pandoc + tectonic + poppler`
 - CI smoke tests for macOS, Linux, and Windows
 
-## Install The Skill
+## Install from GitHub
 
-Install from a GitHub path once the repo is published:
+On macOS, use `python3` and specify the skill path inside this repository:
 
 ```bash
 python ~/.codex/skills/.system/skill-installer/scripts/install-skill-from-github.py \
-  --repo https://github.com/mazemapps/job-search-skill
+  --repo https://github.com/mazemapps/job-search-skill \
+  --path job-application-workflow
 ```
 
 For local development, the equivalent bootstrap command is:
